@@ -110,13 +110,14 @@ export default function AetherStudioProPage() {
   return (
     <main className="w-screen h-screen bg-[#06070b] text-zinc-100 flex flex-col overflow-hidden select-none">
       {/* Top Bar Contract: Zone 1 (Brand Wordmark) — Zone 2 (5 Workspace Nav Links) — Zone 3 (1 Primary Action) */}
-      <header className="h-11 px-5 bg-[#090b11] border-b border-white/[0.08] flex items-center justify-between gap-8 shrink-0">
+      <header className="h-10 px-4 bg-[#090b11] border-b border-white/[0.08] flex items-center justify-between gap-6 shrink-0">
         {/* Zone 1: Single-line Brand Wordmark */}
         <a
           href="#studio"
-          className="text-base font-bold tracking-tight text-zinc-100 whitespace-nowrap shrink-0"
+          className="text-sm font-bold tracking-tight text-zinc-100 whitespace-nowrap shrink-0 flex items-center gap-2"
         >
-          AetherStudio Pro
+          <span className="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_8px_#f59e0b]" />
+          <span>AetherStudio Pro</span>
         </a>
 
         {/* Zone 2: 5 Single-Line Workspace Navigation Links */}
@@ -140,7 +141,7 @@ export default function AetherStudioProPage() {
         <div className="flex items-center shrink-0">
           <button
             onClick={() => setExportModalOpen(true)}
-            className="px-4 py-1.5 text-xs font-semibold text-zinc-950 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 rounded-md shadow-sm transition-all whitespace-nowrap shrink-0"
+            className="px-3.5 py-1 text-xs font-semibold text-zinc-950 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 rounded shadow-sm transition-all whitespace-nowrap shrink-0"
           >
             Export Master Render
           </button>
@@ -148,7 +149,7 @@ export default function AetherStudioProPage() {
       </header>
 
       {/* Secondary Studio Project Utility Sub-Toolbar (Undo/Redo, Resolution/FPS, Shader IDE Quick Switch, .aether Project Save) */}
-      <div className="h-8 px-4 bg-[#0c0e16] border-b border-white/[0.07] flex items-center justify-between text-xs shrink-0">
+      <div className="h-7 px-4 bg-[#0c0e16] border-b border-white/[0.07] flex items-center justify-between text-[11px] shrink-0">
         <div className="flex items-center gap-2">
           <button
             onClick={undo}

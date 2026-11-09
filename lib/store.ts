@@ -352,12 +352,12 @@ const createDefaultEffectPass = (shaderId: string, deterministicKey?: string): A
 };
 
 const INITIAL_TRACKS: TimelineTrack[] = [
-  { id: 'track-text', name: 'V4 · Kinetic Titles & HUD', type: 'text', locked: false, muted: false, solo: false, visible: true, height: 52 },
-  { id: 'track-vfx', name: 'V3 · WebGL2 Shader Adjustment', type: 'vfx', locked: false, muted: false, solo: false, visible: true, height: 52 },
-  { id: 'track-3d', name: 'V2 · Three.js 3D Stage Pass', type: '3d', locked: false, muted: false, solo: false, visible: true, height: 58 },
-  { id: 'track-video', name: 'V1 · Visual Maker & Cinema Plate', type: 'video', locked: false, muted: false, solo: false, visible: true, height: 58 },
-  { id: 'track-a1', name: 'A1 · Cyberpunk Synth & Sub-Bass', type: 'audio', locked: false, muted: false, solo: false, visible: true, height: 54 },
-  { id: 'track-a2', name: 'A2 · Voiceover & Foley Stem', type: 'audio', locked: false, muted: false, solo: false, visible: true, height: 50 },
+  { id: 'track-text', name: 'V4 · Kinetic Titles & HUD', type: 'text', locked: false, muted: false, solo: false, visible: true, height: 36 },
+  { id: 'track-vfx', name: 'V3 · WebGL2 Shader Adjustment', type: 'vfx', locked: false, muted: false, solo: false, visible: true, height: 36 },
+  { id: 'track-3d', name: 'V2 · Three.js 3D Stage Pass', type: '3d', locked: false, muted: false, solo: false, visible: true, height: 36 },
+  { id: 'track-video', name: 'V1 · Visual Maker & Cinema Plate', type: 'video', locked: false, muted: false, solo: false, visible: true, height: 38 },
+  { id: 'track-a1', name: 'A1 · Cyberpunk Synth & Sub-Bass', type: 'audio', locked: false, muted: false, solo: false, visible: true, height: 36 },
+  { id: 'track-a2', name: 'A2 · Voiceover & Foley Stem', type: 'audio', locked: false, muted: false, solo: false, visible: true, height: 36 },
 ];
 
 const INITIAL_CLIPS: TimelineClip[] = [

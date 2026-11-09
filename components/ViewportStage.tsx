@@ -284,7 +284,7 @@ export default function ViewportStage({
   const [inpaintMode, setInpaintMode] = useState(false);
   const [inpaintStrokes, setInpaintStrokes] = useState<Array<{ x: number; y: number; r: number }>>([]);
   const [reviewPins, setReviewPins] = useState<Array<{ id: string; x: number; y: number; time: number; author: string; note: string }>>([
-    { id: 'pin-1', x: 0.52, y: 0.36, time: 2.4, author: 'Sarah (VFX Lead)', note: 'Boost anamorphic flare streak +15% on turbine ignition' },
+    { id: 'pin-1', x: 0.82, y: 0.22, time: 2.4, author: 'Sarah (VFX Lead)', note: 'Boost anamorphic flare streak +15% on turbine ignition' },
   ]);
 
   const threeMountRef = useRef<HTMLDivElement | null>(null);
@@ -471,9 +471,9 @@ export default function ViewportStage({
     scene.environment = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
     pmremGenerator.dispose();
 
-    const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
-    camera.position.set(0, 2.3, 5.8);
-    camera.lookAt(0, 0.9, 0);
+    const camera = new THREE.PerspectiveCamera(42, width / height, 0.1, 100);
+    camera.position.set(0, 2.05, 6.35);
+    camera.lookAt(0, 0.95, 0);
 
     // 3-Point Balanced Studio Lighting Rig (Key + Cool Hemisphere Fill + Rim)
     const hemiLight = new THREE.HemisphereLight(0x38bdf8, 0x0f172a, 0.85);
@@ -514,15 +514,15 @@ export default function ViewportStage({
     shadowPlane.position.y = 0.0;
     scene.add(shadowPlane);
 
-    // GPU-Accelerated 3D Particle System (Points with Float32Array positions/velocities/colors)
-    const particleCount = 1800;
+    // GPU-Accelerated 3D Particle System (Subtle atmospheric cinema embers)
+    const particleCount = 900;
     const pPositions = new Float32Array(particleCount * 3);
     const pVelocities = new Float32Array(particleCount * 3);
     const pColors = new Float32Array(particleCount * 3);
 
     for (let i = 0; i < particleCount; i++) {
       const idx = i * 3;
-      const radius = 0.6 + Math.random() * 4.5;
+      const radius = 1.2 + Math.random() * 4.5;
       const theta = Math.random() * Math.PI * 2;
       pPositions[idx] = Math.cos(theta) * radius;
       pPositions[idx + 1] = Math.random() * 3.5;
@@ -542,10 +542,10 @@ export default function ViewportStage({
     particleGeo.setAttribute('color', new THREE.BufferAttribute(pColors, 3));
 
     const particleMat = new THREE.PointsMaterial({
-      size: 0.055,
+      size: 0.032,
       vertexColors: true,
       transparent: true,
-      opacity: 0.85,
+      opacity: 0.62,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
     });
@@ -1134,69 +1134,67 @@ export default function ViewportStage({
   };
 
   return (
-    <div className="relative flex-1 flex flex-col bg-[#06070b] overflow-hidden border-r border-white/[0.08]">
-      {/* Viewport Top Control Sub-Bar */}
-      <div className="h-9 px-3 bg-[#0c0e16] border-b border-white/[0.08] flex items-center justify-between gap-2 text-xs">
-        {/* Left: 3D Gizmo, Shading & Dual Viewer Switch */}
-        <div className="flex items-center gap-1.5">
+    <div className="relative flex-1 min-w-0 min-h-0 flex flex-col bg-[#06070b] overflow-hidden border-r border-white/[0.08]">
+      {/* Viewport Top Control Sub-Bar (Single-Line Precision Layout) */}
+      <div className="h-8 px-2.5 bg-[#0c0e16] border-b border-white/[0.08] flex items-center justify-between gap-1.5 text-[11px] shrink-0 overflow-x-auto">
+        {/* Left: 3D Gizmo, Dual Viewer & Shading */}
+        <div className="flex items-center gap-1 shrink-0">
           <div className="flex items-center bg-[#06070b] border border-white/[0.08] rounded p-0.5">
             <button
               onClick={() => setTransformGizmoMode('translate')}
               title="Translate Gizmo (G)"
-              className={`px-2 py-0.5 rounded flex items-center gap-1 transition-colors whitespace-nowrap shrink-0 ${
+              className={`px-1.5 py-0.5 rounded flex items-center gap-1 transition-colors whitespace-nowrap shrink-0 ${
                 transformGizmoMode === 'translate'
                   ? 'bg-amber-500 text-zinc-950 font-semibold'
                   : 'text-zinc-400 hover:text-zinc-100'
               }`}
             >
-              <Move className="w-3.5 h-3.5" />
+              <Move className="w-3 h-3" />
               <span>Move</span>
             </button>
             <button
               onClick={() => setTransformGizmoMode('rotate')}
               title="Rotate Gizmo (R)"
-              className={`px-2 py-0.5 rounded flex items-center gap-1 transition-colors whitespace-nowrap shrink-0 ${
+              className={`px-1.5 py-0.5 rounded flex items-center gap-1 transition-colors whitespace-nowrap shrink-0 ${
                 transformGizmoMode === 'rotate'
                   ? 'bg-amber-500 text-zinc-950 font-semibold'
                   : 'text-zinc-400 hover:text-zinc-100'
               }`}
             >
-              <RotateCw className="w-3.5 h-3.5" />
+              <RotateCw className="w-3 h-3" />
               <span>Rotate</span>
             </button>
             <button
               onClick={() => setTransformGizmoMode('scale')}
               title="Scale Gizmo (S)"
-              className={`px-2 py-0.5 rounded flex items-center gap-1 transition-colors whitespace-nowrap shrink-0 ${
+              className={`px-1.5 py-0.5 rounded flex items-center gap-1 transition-colors whitespace-nowrap shrink-0 ${
                 transformGizmoMode === 'scale'
                   ? 'bg-amber-500 text-zinc-950 font-semibold'
                   : 'text-zinc-400 hover:text-zinc-100'
               }`}
             >
-              <Maximize2 className="w-3.5 h-3.5" />
+              <Maximize2 className="w-3 h-3" />
               <span>Scale</span>
             </button>
           </div>
 
-          {/* Single vs Dual Source/Program Monitor Switch */}
           <button
             onClick={() => setDualMonitorMode(!dualMonitorMode)}
-            className={`px-2 py-1 rounded border text-[11px] font-medium transition-colors whitespace-nowrap ${
+            className={`px-2 py-0.5 rounded border text-[11px] font-medium transition-colors whitespace-nowrap shrink-0 ${
               dualMonitorMode
                 ? 'bg-amber-500/20 border-amber-500/50 text-amber-300 font-semibold'
                 : 'bg-[#06070b] border-white/[0.08] text-zinc-400 hover:text-zinc-200'
             }`}
           >
-            {dualMonitorMode ? 'Dual Viewer (Source + PGM)' : 'Dual Viewer'}
+            {dualMonitorMode ? 'Dual Viewer: ON' : 'Dual Viewer'}
           </button>
 
-          {/* Wireframe / Rendered Switch */}
-          <div className="hidden md:flex items-center bg-[#06070b] border border-white/[0.08] rounded p-0.5">
+          <div className="flex items-center bg-[#06070b] border border-white/[0.08] rounded p-0.5 shrink-0">
             {(['rendered', 'wireframe'] as const).map((m) => (
               <button
                 key={m}
                 onClick={() => setShadingMode(m)}
-                className={`px-2 py-0.5 rounded capitalize transition-colors whitespace-nowrap shrink-0 ${
+                className={`px-1.5 py-0.5 rounded capitalize transition-colors whitespace-nowrap shrink-0 ${
                   shadingMode === m
                     ? 'bg-zinc-800 text-amber-400 font-medium'
                     : 'text-zinc-400 hover:text-zinc-200'
@@ -1206,107 +1204,76 @@ export default function ViewportStage({
               </button>
             ))}
           </div>
-
-          {/* 3D Particle Preset Selector */}
-          <div className="hidden 2xl:flex items-center gap-1 bg-[#06070b] border border-white/[0.08] rounded px-2 py-1">
-            <Sparkles className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-            <select
-              value={activeParticlePreset.id}
-              onChange={(e) => {
-                const found = PARTICLE_PRESETS.find((p) => p.id === e.target.value);
-                if (found) setActiveParticlePreset(found);
-              }}
-              className="bg-transparent text-zinc-200 text-xs focus:outline-none cursor-pointer"
-            >
-              {PARTICLE_PRESETS.map((p) => (
-                <option key={p.id} value={p.id} className="bg-zinc-900 text-zinc-100">
-                  Particle: {p.name}
-                </option>
-              ))}
-            </select>
-          </div>
         </div>
 
-        {/* Center: Live SMPTE Timecode Readout & Color Space Badge */}
-        <div className="flex items-center gap-2 bg-[#05060a] border border-white/10 px-3 py-1 rounded font-mono text-xs tabular-nums shadow-inner">
-          <span className="w-2 h-2 rounded-full bg-emerald-400" />
+        {/* Center: Single-Line SMPTE Timecode Readout & Color Space Badge */}
+        <div className="flex items-center gap-1.5 bg-[#05060a] border border-white/10 px-2.5 py-0.5 rounded font-mono text-[11px] tabular-nums shadow-inner whitespace-nowrap shrink-0">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
           <span ref={timecodeSpanRef} className="text-amber-400 font-semibold">
             00:00:00:00
           </span>
           <span className="text-zinc-600">·</span>
           <span className="text-cyan-400 text-[10px]">ACEScct 32F</span>
-          <span className="text-zinc-600">·</span>
-          <span className="text-zinc-400 text-[11px]">{aspectRatioMode}</span>
         </div>
 
-        {/* Right: Multi-Cam, A/B Wipe, AI Inpaint, Proxy & Safe Guides */}
-        <div className="flex items-center gap-1.5">
+        {/* Right: Multi-Cam, A/B Wipe, AI Inpaint & Safe Guides */}
+        <div className="flex items-center gap-1 shrink-0">
           <button
             onClick={() => setMultiCamMode(!multiCamMode)}
-            className={`px-2 py-1 rounded border flex items-center gap-1 transition-colors whitespace-nowrap shrink-0 ${
+            className={`px-2 py-0.5 rounded border flex items-center gap-1 transition-colors whitespace-nowrap shrink-0 ${
               multiCamMode
                 ? 'bg-rose-500/20 border-rose-500/50 text-rose-300 font-medium'
                 : 'bg-[#06070b] border-white/[0.08] text-zinc-400 hover:text-zinc-200'
             }`}
           >
-            <Tv className="w-3.5 h-3.5" />
+            <Tv className="w-3 h-3" />
             <span>Multi-Cam</span>
           </button>
 
           <button
             onClick={() => setAbWipe(!abWipeEnabled)}
-            className={`px-2 py-1 rounded border flex items-center gap-1 transition-colors whitespace-nowrap shrink-0 ${
+            className={`px-2 py-0.5 rounded border flex items-center gap-1 transition-colors whitespace-nowrap shrink-0 ${
               abWipeEnabled
                 ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300 font-medium'
                 : 'bg-[#06070b] border-white/[0.08] text-zinc-400 hover:text-zinc-200'
             }`}
           >
-            <SplitSquareVertical className="w-3.5 h-3.5" />
+            <SplitSquareVertical className="w-3 h-3" />
             <span>A/B Wipe</span>
           </button>
 
           <button
             onClick={() => setInpaintMode(!inpaintMode)}
-            className={`px-2 py-1 rounded border flex items-center gap-1 transition-colors whitespace-nowrap shrink-0 ${
+            className={`px-2 py-0.5 rounded border flex items-center gap-1 transition-colors whitespace-nowrap shrink-0 ${
               inpaintMode
                 ? 'bg-purple-500/20 border-purple-500/50 text-purple-300 font-medium'
                 : 'bg-[#06070b] border-white/[0.08] text-zinc-400 hover:text-zinc-200'
             }`}
           >
-            <Wand2 className="w-3.5 h-3.5" />
+            <Wand2 className="w-3 h-3" />
             <span>Inpaint</span>
           </button>
-
-          <select
-            value={aspectRatioMode}
-            onChange={(e) => setAspectRatioMode(e.target.value as '16:9' | '9:16' | '1:1')}
-            className="bg-[#06070b] border border-white/[0.08] rounded px-2 py-1 text-zinc-300 text-xs focus:outline-none cursor-pointer"
-          >
-            <option value="16:9">16:9 Cinema</option>
-            <option value="9:16">9:16 Vertical</option>
-            <option value="1:1">1:1 Square</option>
-          </select>
 
           <button
             onClick={() => setShowSafeGuides(!showSafeGuides)}
             title="Toggle Safe-Title Guides"
-            className={`p-1.5 rounded border transition-colors ${
+            className={`p-1 rounded border transition-colors shrink-0 ${
               showSafeGuides
                 ? 'bg-zinc-800 border-amber-500/40 text-amber-400'
                 : 'bg-[#06070b] border-white/[0.08] text-zinc-500 hover:text-zinc-300'
             }`}
           >
-            <Grid className="w-3.5 h-3.5" />
+            <Grid className="w-3 h-3" />
           </button>
         </div>
       </div>
 
-      {/* Main Stage Container (Supports Single Cinema Viewer OR DaVinci Dual Source/Timeline Monitors) */}
-      <div className="relative flex-1 flex items-center justify-center gap-3 bg-[radial-gradient(ellipse_at_center,#111522_0%,#06070b_75%)] p-3 overflow-hidden">
+      {/* Main Stage Container (Fits 16:9 Cinema Monitor 100% Inside Available Height Without Cropping) */}
+      <div className="relative flex-1 min-h-0 flex items-center justify-center gap-3 bg-[radial-gradient(ellipse_at_center,#111624_0%,#05060a_78%)] p-2.5 overflow-hidden">
         {/* Optional Left Source Tape Monitor when Dual Viewer Mode is active */}
         {dualMonitorMode && (
-          <div className="flex-1 max-w-[440px] aspect-video bg-[#040508] rounded-lg border border-white/10 shadow-2xl flex flex-col justify-between overflow-hidden relative">
-            <div className="px-2.5 py-1.5 bg-[#0b0d14]/90 border-b border-white/[0.07] flex items-center justify-between text-[10px] font-mono">
+          <div className="h-full max-h-full aspect-video bg-[#040508] rounded-md border border-white/15 shadow-2xl flex flex-col justify-between overflow-hidden relative shrink-0">
+            <div className="px-2.5 py-1 bg-[#0b0d14]/90 border-b border-white/[0.07] flex items-center justify-between text-[10px] font-mono">
               <span className="text-cyan-400 font-semibold">SOURCE TAPE // VIEWER 1</span>
               <select
                 value={sourceClipName}
@@ -1319,39 +1286,37 @@ export default function ViewportStage({
               </select>
             </div>
 
-            {/* Synthetic Raw Log Source Plate Preview */}
-            <div className="flex-1 relative bg-gradient-to-br from-slate-900 via-[#0d1829] to-zinc-950 flex flex-col items-center justify-center p-4">
-              <div className="w-20 h-20 rounded-full border-2 border-cyan-400/40 flex items-center justify-center relative">
-                <div className="w-12 h-12 rounded-full bg-cyan-500/20 border border-amber-400/60" />
+            <div className="flex-1 relative bg-gradient-to-br from-slate-900 via-[#0d1829] to-zinc-950 flex flex-col items-center justify-center p-3">
+              <div className="w-14 h-14 rounded-full border-2 border-cyan-400/40 flex items-center justify-center relative">
+                <div className="w-8 h-8 rounded-full bg-cyan-500/20 border border-amber-400/60" />
               </div>
-              <div className="mt-2 font-mono text-[10px] text-zinc-400">
+              <div className="mt-1.5 font-mono text-[9px] text-zinc-400">
                 RAW LOG UNGRADED SOURCE · IN: 00:01:12 · OUT: 00:04:24
               </div>
             </div>
 
-            {/* DaVinci 3-Point Editing Action Strip */}
-            <div className="p-1.5 bg-[#0b0d14] border-t border-white/[0.08] grid grid-cols-4 gap-1 text-[10px] font-medium">
+            <div className="p-1 bg-[#0b0d14] border-t border-white/[0.08] grid grid-cols-4 gap-1 text-[10px] font-medium">
               <button
                 onClick={() => triggerThreePointEdit('insert')}
-                className="py-1 rounded bg-amber-500/20 hover:bg-amber-500 hover:text-zinc-950 border border-amber-500/40 text-amber-300 transition-colors"
+                className="py-0.5 rounded bg-amber-500/20 hover:bg-amber-500 hover:text-zinc-950 border border-amber-500/40 text-amber-300 transition-colors"
               >
                 Insert (F9)
               </button>
               <button
                 onClick={() => triggerThreePointEdit('overwrite')}
-                className="py-1 rounded bg-rose-500/20 hover:bg-rose-500 hover:text-white border border-rose-500/40 text-rose-300 transition-colors"
+                className="py-0.5 rounded bg-rose-500/20 hover:bg-rose-500 hover:text-white border border-rose-500/40 text-rose-300 transition-colors"
               >
                 Overwrite (F10)
               </button>
               <button
                 onClick={() => triggerThreePointEdit('replace')}
-                className="py-1 rounded bg-cyan-500/20 hover:bg-cyan-500 hover:text-zinc-950 border border-cyan-500/40 text-cyan-300 transition-colors"
+                className="py-0.5 rounded bg-cyan-500/20 hover:bg-cyan-500 hover:text-zinc-950 border border-cyan-500/40 text-cyan-300 transition-colors"
               >
                 Replace (F11)
               </button>
               <button
                 onClick={() => triggerThreePointEdit('top')}
-                className="py-1 rounded bg-emerald-500/20 hover:bg-emerald-500 hover:text-zinc-950 border border-emerald-500/40 text-emerald-300 transition-colors"
+                className="py-0.5 rounded bg-emerald-500/20 hover:bg-emerald-500 hover:text-zinc-950 border border-emerald-500/40 text-emerald-300 transition-colors"
               >
                 Place Top (F12)
               </button>
@@ -1362,10 +1327,10 @@ export default function ViewportStage({
         <div
           style={{
             transform: `scale(${viewportZoom / 100})`,
-            width: aspectRatioMode === '9:16' ? '340px' : aspectRatioMode === '1:1' ? '500px' : '100%',
-            maxWidth: aspectRatioMode === '16:9' ? (dualMonitorMode ? '520px' : '920px') : undefined,
+            aspectRatio:
+              aspectRatioMode === '9:16' ? '9 / 16' : aspectRatioMode === '1:1' ? '1 / 1' : '16 / 9',
           }}
-          className="relative aspect-video bg-black rounded-lg overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.85)] border border-white/15 ring-1 ring-amber-500/10 transition-transform duration-150"
+          className="relative h-full max-h-full w-auto max-w-full bg-black rounded-md overflow-hidden shadow-[0_16px_48px_rgba(0,0,0,0.9)] border border-white/20 ring-1 ring-amber-500/15 transition-transform duration-150"
           onClick={(e) => {
             if (!inpaintMode) return;
             const rect = e.currentTarget.getBoundingClientRect();
@@ -1374,6 +1339,14 @@ export default function ViewportStage({
             setInpaintStrokes((prev) => [...prev, { x: nx, y: ny, r: 26 }]);
           }}
         >
+          {/* Subtle Broadcast Monitor Corner Telemetry Badges */}
+          <div className="absolute top-2 left-2.5 z-20 pointer-events-none flex items-center gap-1.5 bg-black/55 backdrop-blur-xs border border-white/10 px-2 py-0.5 rounded text-[9px] font-mono text-zinc-300">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+            <span>PGM VIEWER 2 · {aspectRatioMode}</span>
+          </div>
+          <div className="absolute top-2 right-2.5 z-20 pointer-events-none bg-black/55 backdrop-blur-xs border border-white/10 px-2 py-0.5 rounded text-[9px] font-mono text-emerald-400">
+            60 FPS LOCK
+          </div>
           {/* Master WebGL2 Ping-Pong Shader & 3D Output Canvas */}
           <canvas
             ref={masterCanvasRef}
@@ -1584,12 +1557,14 @@ export default function ViewportStage({
             </div>
           ))}
         </div>
+      </div>
 
-        {/* Collapsible Bottom 3D & Viewport Quick-Control Dock (per Three.js skill §5) */}
-        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-30 bg-zinc-900/95 border border-zinc-800 rounded-lg px-3 py-1.5 flex items-center gap-3 text-xs shadow-xl">
-          <div className="flex items-center gap-2">
-            <Layers className="w-3.5 h-3.5 text-amber-400" />
-            <span className="text-zinc-400 whitespace-nowrap">Exploded</span>
+      {/* Dedicated Non-Overlapping Viewport Footer Bar (3D Rig, Particles, Aspect Ratio & Zoom) */}
+      <div className="h-7 px-3 bg-[#090b12] border-t border-white/[0.08] flex items-center justify-between gap-3 text-[11px] shrink-0 overflow-x-auto">
+        <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-1.5">
+            <Layers className="w-3 h-3 text-amber-400" />
+            <span className="text-zinc-400 whitespace-nowrap">Exploded View</span>
             <input
               type="range"
               min={0}
@@ -1601,10 +1576,10 @@ export default function ViewportStage({
             />
           </div>
 
-          <div className="h-3.5 w-px bg-zinc-800" />
+          <span className="text-zinc-700">|</span>
 
-          <div className="flex items-center gap-1.5">
-            <span className="text-zinc-400 whitespace-nowrap">Rig:</span>
+          <div className="flex items-center gap-1">
+            <span className="text-zinc-400 whitespace-nowrap">Lighting Rig:</span>
             <select
               value={studioLightPreset}
               onChange={(e) =>
@@ -1612,7 +1587,7 @@ export default function ViewportStage({
                   e.target.value as 'cinema-warm-cool' | 'cyberpunk-neon' | 'anodized-studio'
                 )
               }
-              className="bg-zinc-950 border border-zinc-800 rounded px-1.5 py-0.5 text-zinc-200 text-xs"
+              className="bg-[#05060a] border border-white/10 rounded px-1.5 py-0.5 text-zinc-200 text-[11px]"
             >
               <option value="cinema-warm-cool">Warm/Cool Key</option>
               <option value="cyberpunk-neon">Cyberpunk Neon</option>
@@ -1620,36 +1595,58 @@ export default function ViewportStage({
             </select>
           </div>
 
-          <div className="h-3.5 w-px bg-zinc-800" />
+          <span className="text-zinc-700">|</span>
 
-          <div className="flex items-center gap-1.5">
-            <span className="text-zinc-400 whitespace-nowrap">3D Layer:</span>
-            <button
-              onClick={() =>
-                setComposite3DOver2D(composite3DOver2D === 'over' ? 'behind' : 'over')
-              }
-              className="px-2 py-0.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded font-medium capitalize whitespace-nowrap"
-            >
-              {composite3DOver2D === 'over' ? 'Over 2D' : 'Behind Subject'}
-            </button>
-          </div>
-
-          <div className="h-3.5 w-px bg-zinc-800" />
-
-          <div className="flex items-center gap-1.5">
-            <span className="text-zinc-400">Zoom:</span>
+          <div className="flex items-center gap-1">
+            <Sparkles className="w-3 h-3 text-cyan-400 shrink-0" />
             <select
-              value={viewportZoom}
-              onChange={(e) => setViewportZoom(Number(e.target.value))}
-              className="bg-zinc-950 border border-zinc-800 rounded px-1.5 py-0.5 text-zinc-200 font-mono text-xs"
+              value={activeParticlePreset.id}
+              onChange={(e) => {
+                const found = PARTICLE_PRESETS.find((p) => p.id === e.target.value);
+                if (found) setActiveParticlePreset(found);
+              }}
+              className="bg-[#05060a] border border-white/10 rounded px-1.5 py-0.5 text-zinc-200 text-[11px]"
             >
-              <option value={50}>50%</option>
-              <option value={75}>75%</option>
-              <option value={100}>100% (Fit)</option>
-              <option value={150}>150%</option>
-              <option value={200}>200%</option>
+              {PARTICLE_PRESETS.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
             </select>
           </div>
+        </div>
+
+        <div className="flex items-center gap-2.5 shrink-0">
+          <button
+            onClick={() =>
+              setComposite3DOver2D(composite3DOver2D === 'over' ? 'behind' : 'over')
+            }
+            className="px-2 py-0.5 bg-[#121622] hover:bg-zinc-800 border border-white/10 text-zinc-200 rounded font-medium whitespace-nowrap"
+          >
+            {composite3DOver2D === 'over' ? '3D Over 2D' : '3D Behind Subject'}
+          </button>
+
+          <select
+            value={aspectRatioMode}
+            onChange={(e) => setAspectRatioMode(e.target.value as '16:9' | '9:16' | '1:1')}
+            className="bg-[#05060a] border border-white/10 rounded px-1.5 py-0.5 text-zinc-300 text-[11px]"
+          >
+            <option value="16:9">16:9 Cinema</option>
+            <option value="9:16">9:16 Vertical</option>
+            <option value="1:1">1:1 Square</option>
+          </select>
+
+          <select
+            value={viewportZoom}
+            onChange={(e) => setViewportZoom(Number(e.target.value))}
+            className="bg-[#05060a] border border-white/10 rounded px-1.5 py-0.5 text-zinc-200 font-mono text-[11px]"
+          >
+            <option value={50}>50%</option>
+            <option value={75}>75%</option>
+            <option value={100}>100% Fit</option>
+            <option value={150}>150%</option>
+            <option value={200}>200%</option>
+          </select>
         </div>
       </div>
     </div>

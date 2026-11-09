@@ -183,9 +183,9 @@ export default function TimelinePanel() {
   const selectedClip: TimelineClip | undefined = clips.find((c) => c.id === selectedClipId);
 
   return (
-    <section className="h-72 shrink-0 bg-[#06070b] border-t border-white/[0.08] flex flex-col select-none">
+    <section className="h-64 shrink-0 bg-[#06070b] border-t border-white/[0.08] flex flex-col select-none">
       {/* Timeline Transport & Tool Header */}
-      <div className="h-9 px-3 bg-[#0c0e16] border-b border-white/[0.08] flex items-center justify-between gap-4 text-xs">
+      <div className="h-8 px-3 bg-[#0c0e16] border-b border-white/[0.08] flex items-center justify-between gap-4 text-xs shrink-0">
         {/* Left: Playback Transport & Timecode */}
         <div className="flex items-center gap-2">
           <div className="flex items-center bg-[#06070b] border border-white/10 rounded p-0.5">
@@ -324,10 +324,10 @@ export default function TimelinePanel() {
       </div>
 
       {/* Main Timeline Tracks or Keyframe Curve Editor */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 min-h-0 flex overflow-hidden">
         {/* Left Track Headers Column */}
-        <div className="w-60 shrink-0 bg-[#0b0d14] border-r border-white/[0.08] flex flex-col">
-          <div className="h-6 px-3 border-b border-white/[0.08] bg-[#07080d] flex items-center justify-between text-[10px] font-mono text-zinc-400">
+        <div className="w-56 shrink-0 bg-[#0b0d14] border-r border-white/[0.08] flex flex-col min-h-0">
+          <div className="h-5 px-3 border-b border-white/[0.08] bg-[#07080d] flex items-center justify-between text-[10px] font-mono text-zinc-400 shrink-0">
             <span>TRACK PATCH BAY</span>
             <span className="text-sky-400">SMART CACHE: ON</span>
           </div>
@@ -340,7 +340,7 @@ export default function TimelinePanel() {
               >
                 <div className="flex items-center gap-1.5 min-w-0">
                   <span
-                    className={`w-1.5 h-4 rounded-xs shrink-0 ${
+                    className={`w-1.5 h-3.5 rounded-xs shrink-0 ${
                       tr.type === 'audio'
                         ? 'bg-emerald-500'
                         : tr.type === '3d'
@@ -350,11 +350,11 @@ export default function TimelinePanel() {
                         : 'bg-amber-500'
                     }`}
                   />
-                  <span className="text-xs font-medium text-zinc-200 truncate">
+                  <span className="text-[11px] font-medium text-zinc-200 truncate">
                     {tr.name}
                   </span>
                 </div>
-                <div className="flex items-center gap-1 shrink-0">
+                <div className="flex items-center gap-0.5 shrink-0">
                   <button
                     onClick={() => toggleTrackFlag(tr.id, 'locked')}
                     className={`p-1 rounded ${
@@ -389,7 +389,7 @@ export default function TimelinePanel() {
         </div>
 
         {/* Right Scrollable Timeline Ruler & Track Lanes */}
-        <div className="flex-1 overflow-x-auto overflow-y-auto relative bg-zinc-950">
+        <div className="flex-1 min-h-0 overflow-x-auto overflow-y-auto relative bg-[#05060a]">
           <div
             style={{ width: `${Math.max(1100, duration * timelineZoom + 120)}px` }}
             className="relative min-h-full"
@@ -398,17 +398,17 @@ export default function TimelinePanel() {
             <div
               ref={rulerRef}
               onPointerDown={handleRulerScrub}
-              className="h-6 bg-zinc-900 border-b border-zinc-800 relative cursor-ew-resize sticky top-0 z-20"
+              className="h-5 bg-[#090b12] border-b border-white/[0.08] relative cursor-ew-resize sticky top-0 z-20"
             >
               {/* Blue Smart Frame Cache Bar */}
-              <div className="absolute top-0 left-0 right-0 h-1 bg-sky-500/70" />
+              <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-sky-500 via-cyan-400 to-sky-500 opacity-85" />
 
               {/* Second Ticks */}
               {Array.from({ length: duration + 1 }, (_, sec) => (
                 <div
                   key={sec}
                   style={{ left: `${sec * timelineZoom}px` }}
-                  className="absolute top-1 bottom-0 border-l border-zinc-700 pl-1 text-[10px] font-mono text-zinc-400 tabular-nums"
+                  className="absolute top-0.5 bottom-0 border-l border-white/15 pl-1 text-[9px] font-mono text-zinc-400 tabular-nums"
                 >
                   00:{String(sec).padStart(2, '0')}:00
                 </div>
@@ -420,7 +420,7 @@ export default function TimelinePanel() {
                   key={bm.id}
                   style={{ left: `${bm.time * timelineZoom}px` }}
                   title={`Beat @ ${bm.time}s`}
-                  className={`absolute bottom-0.5 -translate-x-1/2 text-[9px] pointer-events-none ${
+                  className={`absolute bottom-0 -translate-x-1/2 text-[8px] pointer-events-none ${
                     bm.isDownbeat ? 'text-cyan-400 font-bold' : 'text-cyan-500/50'
                   }`}
                 >
@@ -430,14 +430,14 @@ export default function TimelinePanel() {
             </div>
 
             {/* Track Lanes */}
-            <div className="divide-y divide-zinc-800/70 relative">
+            <div className="divide-y divide-white/[0.05] relative">
               {tracks.map((tr) => {
                 const trackClips = clips.filter((c) => c.trackId === tr.id);
                 return (
                   <div
                     key={tr.id}
                     style={{ height: `${tr.height}px` }}
-                    className="relative bg-zinc-950/90"
+                    className="relative bg-[#070910]/90"
                   >
                     {trackClips.map((clip) => {
                       const isSelected = clip.id === selectedClipId;
@@ -450,8 +450,8 @@ export default function TimelinePanel() {
                           style={{
                             left: `${leftPx}px`,
                             width: `${widthPx}px`,
-                            backgroundColor: `${clip.color}28`,
-                            borderColor: isSelected ? '#f59e0b' : clip.color,
+                            backgroundColor: `${clip.color}22`,
+                            borderColor: isSelected ? '#f59e0b' : `${clip.color}aa`,
                           }}
                           onClick={(e) => {
                             e.stopPropagation();
@@ -474,10 +474,21 @@ export default function TimelinePanel() {
                               origDuration: clip.duration,
                             });
                           }}
-                          className={`absolute top-1 bottom-1 rounded border px-2 flex flex-col justify-between overflow-hidden cursor-grab active:cursor-grabbing transition-shadow ${
+                          className={`absolute top-[2px] bottom-[2px] rounded border flex flex-col justify-between overflow-hidden cursor-grab active:cursor-grabbing transition-shadow ${
                             isSelected ? 'ring-1 ring-amber-400 shadow-lg z-10' : ''
                           }`}
                         >
+                          {/* Subtle Filmstrip / Frame Grid Background Pattern for Video & 3D Clips */}
+                          {clip.type !== 'audio' && (
+                            <div
+                              className="absolute inset-0 opacity-15 pointer-events-none"
+                              style={{
+                                backgroundImage:
+                                  'repeating-linear-gradient(90deg, transparent, transparent 28px, rgba(255,255,255,0.18) 28px, rgba(255,255,255,0.18) 29px)',
+                              }}
+                            />
+                          )}
+
                           {/* Left Trim Handle */}
                           <div
                             onPointerDown={(e) => {
@@ -491,7 +502,7 @@ export default function TimelinePanel() {
                                 origDuration: clip.duration,
                               });
                             }}
-                            className="absolute left-0 top-0 bottom-0 w-2 bg-white/10 hover:bg-amber-400/60 cursor-ew-resize"
+                            className="absolute left-0 top-0 bottom-0 w-1.5 bg-white/10 hover:bg-amber-400/70 cursor-ew-resize z-10"
                           />
 
                           {/* Right Trim Handle */}
@@ -507,48 +518,64 @@ export default function TimelinePanel() {
                                 origDuration: clip.duration,
                               });
                             }}
-                            className="absolute right-0 top-0 bottom-0 w-2 bg-white/10 hover:bg-amber-400/60 cursor-ew-resize"
+                            className="absolute right-0 top-0 bottom-0 w-1.5 bg-white/10 hover:bg-amber-400/70 cursor-ew-resize z-10"
                           />
 
-                          <div className="flex items-center justify-between gap-1 pt-0.5 pointer-events-none">
-                            <span className="text-[11px] font-semibold text-zinc-100 truncate">
-                              {clip.name}
-                            </span>
-                            {clip.effectStack.length > 0 && (
-                              <span className="text-[9px] font-mono text-amber-300 shrink-0">
-                                FX:{clip.effectStack.length}
+                          {/* Top DaVinci Clip Header Ribbon */}
+                          <div
+                            style={{ backgroundColor: `${clip.color}42` }}
+                            className="px-2 py-0.5 border-b border-white/10 flex items-center justify-between gap-1.5 pointer-events-none relative z-1"
+                          >
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <span
+                                style={{ backgroundColor: clip.color }}
+                                className="w-1.5 h-1.5 rounded-full shrink-0"
+                              />
+                              <span className="text-[10px] font-semibold text-zinc-100 truncate">
+                                {clip.name}
                               </span>
-                            )}
+                            </div>
+                            <div className="flex items-center gap-1.5 shrink-0 font-mono text-[9px]">
+                              {clip.effectStack.length > 0 && (
+                                <span className="px-1 rounded bg-amber-500/30 border border-amber-400/40 text-amber-200 font-bold">
+                                  FX:{clip.effectStack.length}
+                                </span>
+                              )}
+                              <span className="text-zinc-300/90">{clip.duration.toFixed(1)}s</span>
+                            </div>
                           </div>
 
-                          {/* Audio Waveform or Keyframe Diamonds */}
+                          {/* Audio Waveform or Keyframe Automation Line */}
                           {clip.type === 'audio' ? (
-                            <div className="flex items-end gap-0.5 h-4 pb-0.5 opacity-60 pointer-events-none">
-                              {Array.from({ length: 28 }, (_, i) => (
+                            <div className="flex items-end gap-[2px] h-3.5 px-2 pb-0.5 opacity-80 pointer-events-none relative z-1">
+                              {Array.from({ length: 44 }, (_, i) => (
                                 <div
                                   key={i}
                                   style={{
-                                    height: `${25 + Math.abs(Math.sin(i * 0.9)) * 75}%`,
+                                    height: `${22 + Math.abs(Math.sin(i * 0.75 + clip.startTime)) * 78}%`,
                                     backgroundColor: clip.color,
                                   }}
-                                  className="flex-1 rounded-t"
+                                  className="flex-1 rounded-t-xs"
                                 />
                               ))}
                             </div>
                           ) : (
-                            <div className="flex items-center gap-1 pb-0.5 text-[9px] font-mono text-zinc-400 pointer-events-none">
-                              <span>{clip.duration.toFixed(1)}s</span>
-                              {Object.values(clip.keyframes).flat().map((kf) => (
-                                <span
-                                  key={kf.id}
-                                  style={{
-                                    left: `${((kf.time - clip.startTime) / clip.duration) * 100}%`,
-                                  }}
-                                  className="absolute bottom-1 text-amber-400"
-                                >
-                                  ◆
-                                </span>
-                              ))}
+                            <div className="relative h-3 px-2 flex items-center pointer-events-none z-1">
+                              {/* Automation Spline Guide Line */}
+                              <div className="w-full h-px bg-white/15" />
+                              {Object.values(clip.keyframes)
+                                .flat()
+                                .map((kf) => (
+                                  <span
+                                    key={kf.id}
+                                    style={{
+                                      left: `${((kf.time - clip.startTime) / clip.duration) * 100}%`,
+                                    }}
+                                    className="absolute text-[9px] text-amber-400 -translate-x-1/2"
+                                  >
+                                    ◆
+                                  </span>
+                                ))}
                             </div>
                           )}
                         </div>
