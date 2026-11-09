@@ -8,6 +8,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { useStudioStore, Scene3DObject } from '@/lib/store';
 import { playbackEngine, HighFrequencyPlaybackEngine } from '@/lib/playbackEngine';
 import { ShaderCompositorEngine } from '@/lib/shaderCompositorEngine';
+import { PRODUCTION_SHADERS } from '@/lib/shaders';
 import { audioEngine } from '@/lib/audioEngine';
 import {
   CameraIcon,
@@ -253,6 +254,7 @@ export default function ViewportStage({
     explodedViewFactor,
     setExplodedViewFactor,
     studioLightPreset,
+    setStudioLightPreset,
     groundPlaneCalibrated,
     shadowCatcherOpacity,
     showSafeGuides,
@@ -270,6 +272,8 @@ export default function ViewportStage({
     magicMaskStrokes,
     addMagicMaskStroke,
     beatMarkers,
+    nodes,
+    channelStrips,
   } = useStudioStore();
 
   const [multiCamMode, setMultiCamMode] = useState(false);
@@ -286,6 +290,7 @@ export default function ViewportStage({
   const threeMountRef = useRef<HTMLDivElement | null>(null);
   const threeCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const composite2DCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const abWipeCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const compositorEngineRef = useRef<ShaderCompositorEngine | null>(null);
   const timecodeSpanRef = useRef<HTMLSpanElement | null>(null);
 
@@ -295,6 +300,7 @@ export default function ViewportStage({
     tracks,
     sceneObjects,
     selectedObject3DId,
+    transformGizmoMode,
     shadingMode,
     composite3DOver2D,
     explodedViewFactor,
@@ -315,6 +321,8 @@ export default function ViewportStage({
     activeParticlePreset,
     inpaintStrokes,
     reviewPins,
+    nodes,
+    channelStrips,
   });
 
   useEffect(() => {
@@ -323,6 +331,7 @@ export default function ViewportStage({
       tracks,
       sceneObjects,
       selectedObject3DId,
+      transformGizmoMode,
       shadingMode,
       composite3DOver2D,
       explodedViewFactor,
@@ -343,12 +352,15 @@ export default function ViewportStage({
       activeParticlePreset,
       inpaintStrokes,
       reviewPins,
+      nodes,
+      channelStrips,
     };
   }, [
     clips,
     tracks,
     sceneObjects,
     selectedObject3DId,
+    transformGizmoMode,
     shadingMode,
     composite3DOver2D,
     explodedViewFactor,
@@ -369,6 +381,8 @@ export default function ViewportStage({
     activeParticlePreset,
     inpaintStrokes,
     reviewPins,
+    nodes,
+    channelStrips,
   ]);
 
   // Multi-Cam Live Switching Hotkeys (1, 2, 3, 4 during Multi-Cam mode)
@@ -698,14 +712,48 @@ export default function ViewportStage({
       }
 
       // Sync Web Audio Engine & extract real-time FFT + audioBass
+      const tracksMutedMap: Record<string, boolean> = {};
+      const tracksVisibleMap: Record<string, boolean> = {};
+      for (const tr of st.tracks) {
+        tracksMutedMap[tr.id] = tr.muted;
+        tracksVisibleMap[tr.id] = tr.visible;
+      }
+      audioEngine.syncChannelStrips(st.channelStrips, tracksMutedMap);
       audioEngine.setPlaybackState(isPlaying, useStudioStore.getState().detectedBpm);
       const telemetry = audioEngine.getTelemetry(currentTime, isPlaying);
       const audioBass = telemetry.audioBass;
 
       // Sync Three.js objects & gizmo mode
+      if (transformControls.mode !== st.transformGizmoMode) {
+        transformControls.setMode(st.transformGizmoMode);
+      }
       syncSceneObjects(st.sceneObjects, st.selectedObject3DId, st.explodedViewFactor);
       gridHelper.visible = st.groundPlaneCalibrated;
       shadowPlane.material.opacity = st.shadowCatcherOpacity;
+
+      // Apply Studio Lighting Rig Presets dynamically
+      if (st.studioLightPreset === 'cyberpunk-neon') {
+        hemiLight.color.setHex(0xe879f9);
+        hemiLight.groundColor.setHex(0x090d16);
+        keyLight.color.setHex(0x22d3ee);
+        keyLight.intensity = 2.8;
+        rimLight.color.setHex(0xf43f5e);
+        rimLight.intensity = 2.4;
+      } else if (st.studioLightPreset === 'anodized-studio') {
+        hemiLight.color.setHex(0xe2e8f0);
+        hemiLight.groundColor.setHex(0x0f172a);
+        keyLight.color.setHex(0xffffff);
+        keyLight.intensity = 2.6;
+        rimLight.color.setHex(0xf59e0b);
+        rimLight.intensity = 1.9;
+      } else {
+        hemiLight.color.setHex(0x38bdf8);
+        hemiLight.groundColor.setHex(0x0f172a);
+        keyLight.color.setHex(0xfffbeb);
+        keyLight.intensity = 2.4;
+        rimLight.color.setHex(0x06b6d4);
+        rimLight.intensity = 1.6;
+      }
 
       // Animate 3D Drone & GPU Curl-Noise Particles with time + audioBass
       objectsRoot.children.forEach((grp, idx) => {
@@ -802,18 +850,21 @@ export default function ViewportStage({
         ctx.fillStyle = bgGrad;
         ctx.fillRect(0, 0, w, h);
 
-        // Visual Maker Audio-Reactive FFT Spectrum Horizon Bars
-        const videoClip = st.clips.find(
-          (c) =>
-            c.trackId === 'track-video' &&
-            currentTime >= c.startTime &&
-            currentTime <= c.startTime + c.duration
-        );
+        // Visual Maker Audio-Reactive FFT Spectrum Horizon Bars (respecting track-video visibility)
+        const videoClip =
+          tracksVisibleMap['track-video'] !== false
+            ? st.clips.find(
+                (c) =>
+                  c.trackId === 'track-video' &&
+                  currentTime >= c.startTime &&
+                  currentTime <= c.startTime + c.duration
+              )
+            : undefined;
         if (videoClip) {
           const barCount = 48;
           const barWidth = w / barCount;
           ctx.save();
-          ctx.globalAlpha = 0.32;
+          ctx.globalAlpha = 0.32 * videoClip.opacity;
           for (let b = 0; b < barCount; b++) {
             const val = telemetry.fftBins[b * 2] / 255;
             const barH = val * h * 0.42;
@@ -826,8 +877,10 @@ export default function ViewportStage({
           ctx.restore();
         }
 
-        // 2. Draw Three.js 3D Stage WebGL canvas onto comp2D
-        ctx.drawImage(renderer.domElement, 0, 0, w, h);
+        // 2. Draw Three.js 3D Stage WebGL canvas onto comp2D (respecting track-3d visibility)
+        if (tracksVisibleMap['track-3d'] !== false) {
+          ctx.drawImage(renderer.domElement, 0, 0, w, h);
+        }
 
         // 3. If Magic Mask "Behind Subject" Sandwich mode is enabled, render foreground matte rim highlight
         if (st.magicMaskEnabled) {
@@ -870,13 +923,16 @@ export default function ViewportStage({
           ctx.restore();
         }
 
-        // 5. Render Active Text & Kinetic Captions Track Clips
-        const activeTextClips = st.clips.filter(
-          (c) =>
-            c.trackId === 'track-text' &&
-            currentTime >= c.startTime &&
-            currentTime <= c.startTime + c.duration
-        );
+        // 5. Render Active Text & Kinetic Captions Track Clips (respecting track-text visibility)
+        const activeTextClips =
+          tracksVisibleMap['track-text'] !== false
+            ? st.clips.filter(
+                (c) =>
+                  c.trackId === 'track-text' &&
+                  currentTime >= c.startTime &&
+                  currentTime <= c.startTime + c.duration
+              )
+            : [];
         for (const tc of activeTextClips) {
           const evalOpacity = HighFrequencyPlaybackEngine.evaluateKeyframes(
             tc.keyframes['opacity'],
@@ -886,7 +942,7 @@ export default function ViewportStage({
           ctx.save();
           ctx.globalAlpha = evalOpacity;
           const tx = w * 0.5 + tc.transform.positionX;
-          const ty = h * 0.84;
+          const ty = h * 0.84 + tc.transform.positionY;
 
           // Glassmorphic broadcast title bar backing
           ctx.fillStyle = 'rgba(9, 9, 11, 0.76)';
@@ -928,17 +984,30 @@ export default function ViewportStage({
         }
       }
 
-      // Collect active WebGL2 Shader Passes from Adjustment & Video Clips
+      // Draw ungraded Before Plate onto abWipeCanvasRef when A/B Split Wipe is active
+      if (st.abWipeEnabled && abWipeCanvasRef.current) {
+        const wipeCanvas = abWipeCanvasRef.current;
+        if (wipeCanvas.width !== comp2D.width) {
+          wipeCanvas.width = comp2D.width;
+          wipeCanvas.height = comp2D.height;
+        }
+        const wipeCtx = wipeCanvas.getContext('2d');
+        if (wipeCtx) {
+          wipeCtx.clearRect(0, 0, wipeCanvas.width, wipeCanvas.height);
+          wipeCtx.drawImage(comp2D, 0, 0);
+        }
+      }
+
+      // Collect active WebGL2 Shader Passes from Adjustment & Video Clips (respecting track visibility)
       const activePasses = st.clips
         .filter(
           (c) =>
+            tracksVisibleMap[c.trackId] !== false &&
             currentTime >= c.startTime &&
-            currentTime <= c.startTime + c.duration &&
-            c.effectStack.length > 0
+            currentTime <= c.startTime + c.duration
         )
-        .flatMap((c) =>
-          c.effectStack.map((pass) => {
-            // Apply keyframed uniform overrides if any exist on the clip
+        .flatMap((c) => {
+          const passes = c.effectStack.map((pass) => {
             const updatedUniforms = { ...pass.uniformValues };
             for (const uName of Object.keys(updatedUniforms)) {
               const kfCurve = c.keyframes[`uniform.${uName}`];
@@ -953,8 +1022,77 @@ export default function ViewportStage({
               }
             }
             return { ...pass, uniformValues: updatedUniforms };
-          })
-        );
+          });
+
+          // Automatically synthesize a live DaVinci Color Grade pass if the clip has colorGrading adjustments
+          const cg = c.colorGrading;
+          const hasGradeAdjustments =
+            cg.exposure !== 0 ||
+            cg.contrast !== 1 ||
+            cg.saturation !== 1 ||
+            cg.temperature !== 0 ||
+            cg.tint !== 0 ||
+            cg.lift.some((v) => v !== 0) ||
+            cg.gamma.some((v) => v !== 1) ||
+            cg.gain.some((v) => v !== 1);
+
+          if (hasGradeAdjustments && !passes.some((p) => p.shaderId === 'colorGrade')) {
+            const colorShaderDef = PRODUCTION_SHADERS.find((s) => s.id === 'colorGrade');
+            if (colorShaderDef) {
+              const expFactor = Math.pow(2, cg.exposure * 0.5);
+              const tempShiftR = cg.temperature * 0.002;
+              const tempShiftB = -cg.temperature * 0.002;
+              passes.push({
+                instanceId: `auto-grade-${c.id}`,
+                shaderId: 'colorGrade',
+                name: 'DaVinci Primary Color Grade',
+                enabled: true,
+                fragmentSource: colorShaderDef.fragmentSource,
+                audioLinkedUniforms: {},
+                uniformValues: {
+                  u_lift: [cg.lift[0], cg.lift[1], cg.lift[2]],
+                  u_gamma: [cg.gamma[0], cg.gamma[1], cg.gamma[2]],
+                  u_gain: [
+                    cg.gain[0] * expFactor + tempShiftR,
+                    cg.gain[1] * expFactor,
+                    cg.gain[2] * expFactor + tempShiftB,
+                  ],
+                  u_contrast: [cg.contrast],
+                  u_saturation: [cg.saturation],
+                },
+              });
+            }
+          }
+          return passes;
+        });
+
+      // Also append any active non-bypassed ShaderFX nodes from the Node Graph DAG
+      for (const n of st.nodes) {
+        if (n.type === 'ShaderFX' && !n.bypassed && n.shaderId) {
+          const nodeShaderDef = PRODUCTION_SHADERS.find((s) => s.id === n.shaderId);
+          if (nodeShaderDef) {
+            const uVals: Record<string, number[]> = {};
+            for (const u of nodeShaderDef.uniforms) {
+              uVals[u.name] = [...u.defaultValue];
+            }
+            if (typeof n.params.intensity === 'number') {
+              const inten = n.params.intensity;
+              if (uVals['u_intensity']) uVals['u_intensity'] = [inten];
+              if (uVals['u_trackingNoise']) uVals['u_trackingNoise'] = [inten * 0.4];
+              if (uVals['u_grainAmount']) uVals['u_grainAmount'] = [inten * 0.08];
+            }
+            activePasses.push({
+              instanceId: `node-fx-${n.id}`,
+              shaderId: n.shaderId,
+              name: n.label,
+              enabled: true,
+              fragmentSource: nodeShaderDef.fragmentSource,
+              audioLinkedUniforms: {},
+              uniformValues: uVals,
+            });
+          }
+        }
+      }
 
       shaderEngine.renderCompositeStack(comp2D, activePasses, currentTime, audioBass);
 
@@ -1242,6 +1380,19 @@ export default function ViewportStage({
             className="w-full h-full object-contain block pointer-events-none"
           />
 
+          {/* Before/Ungraded Split-Screen Wipe Overlay Canvas (Left Side of A/B Divider) */}
+          {abWipeEnabled && (
+            <div
+              style={{ clipPath: `inset(0 ${100 - abWipePosition}% 0 0)` }}
+              className="absolute inset-0 pointer-events-none z-15"
+            >
+              <canvas
+                ref={abWipeCanvasRef}
+                className="w-full h-full object-contain block"
+              />
+            </div>
+          )}
+
           {/* Interactive Three.js Mount Overlay for OrbitControls & TransformControls */}
           <div ref={threeMountRef} className="absolute inset-0 z-10" />
 
@@ -1435,10 +1586,10 @@ export default function ViewportStage({
         </div>
 
         {/* Collapsible Bottom 3D & Viewport Quick-Control Dock (per Three.js skill §5) */}
-        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-30 bg-zinc-900/95 border border-zinc-800 rounded-lg px-3 py-1.5 flex items-center gap-4 text-xs shadow-xl">
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-30 bg-zinc-900/95 border border-zinc-800 rounded-lg px-3 py-1.5 flex items-center gap-3 text-xs shadow-xl">
           <div className="flex items-center gap-2">
             <Layers className="w-3.5 h-3.5 text-amber-400" />
-            <span className="text-zinc-400 whitespace-nowrap">Exploded View</span>
+            <span className="text-zinc-400 whitespace-nowrap">Exploded</span>
             <input
               type="range"
               min={0}
@@ -1446,21 +1597,40 @@ export default function ViewportStage({
               step={0.05}
               value={explodedViewFactor}
               onChange={(e) => setExplodedViewFactor(Number(e.target.value))}
-              className="w-20 accent-amber-500 cursor-pointer"
+              className="w-16 accent-amber-500 cursor-pointer"
             />
           </div>
 
           <div className="h-3.5 w-px bg-zinc-800" />
 
           <div className="flex items-center gap-1.5">
-            <span className="text-zinc-400 whitespace-nowrap">3D Composite:</span>
+            <span className="text-zinc-400 whitespace-nowrap">Rig:</span>
+            <select
+              value={studioLightPreset}
+              onChange={(e) =>
+                setStudioLightPreset(
+                  e.target.value as 'cinema-warm-cool' | 'cyberpunk-neon' | 'anodized-studio'
+                )
+              }
+              className="bg-zinc-950 border border-zinc-800 rounded px-1.5 py-0.5 text-zinc-200 text-xs"
+            >
+              <option value="cinema-warm-cool">Warm/Cool Key</option>
+              <option value="cyberpunk-neon">Cyberpunk Neon</option>
+              <option value="anodized-studio">Anodized Studio</option>
+            </select>
+          </div>
+
+          <div className="h-3.5 w-px bg-zinc-800" />
+
+          <div className="flex items-center gap-1.5">
+            <span className="text-zinc-400 whitespace-nowrap">3D Layer:</span>
             <button
               onClick={() =>
                 setComposite3DOver2D(composite3DOver2D === 'over' ? 'behind' : 'over')
               }
               className="px-2 py-0.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded font-medium capitalize whitespace-nowrap"
             >
-              {composite3DOver2D === 'over' ? '3D Over 2D' : '3D Behind Subject'}
+              {composite3DOver2D === 'over' ? 'Over 2D' : 'Behind Subject'}
             </button>
           </div>
 

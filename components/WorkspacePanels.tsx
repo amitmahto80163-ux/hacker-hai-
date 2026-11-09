@@ -325,24 +325,104 @@ export function NodeGraphCompositor() {
                   </div>
                 </div>
 
-                {/* Live 64x36 Thumbnail Preview & Node Type Meta */}
-                <div className="p-2 flex items-center gap-2">
-                  <div className="w-14 h-8 rounded bg-gradient-to-br from-slate-800 via-cyan-950 to-amber-950 border border-zinc-700 flex items-center justify-center text-[9px] font-mono text-cyan-300 shrink-0">
-                    FBO OK
-                  </div>
-                  <div className="text-[10px] font-mono text-zinc-400 leading-tight truncate">
-                    <div>{node.type}</div>
-                    <div className="text-zinc-500">RGBA16F</div>
+                  {/* Live 64x36 Thumbnail Preview & Node Type Meta */}
+                  <div className="p-2 flex items-center gap-2">
+                    <div
+                      className={`w-14 h-8 rounded border flex items-center justify-center text-[9px] font-mono shrink-0 ${
+                        node.bypassed
+                          ? 'bg-zinc-900 border-rose-500/40 text-rose-400 line-through'
+                          : 'bg-gradient-to-br from-slate-800 via-cyan-950 to-amber-950 border-zinc-700 text-cyan-300'
+                      }`}
+                    >
+                      {node.bypassed ? 'BYPASS' : 'FBO OK'}
+                    </div>
+                    <div className="text-[10px] font-mono text-zinc-400 leading-tight truncate">
+                      <div>{node.type}</div>
+                      <div className="text-zinc-500">RGBA16F</div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
+
+        {/* Selected Node Live Inspector Bar */}
+        {(() => {
+          const selNode = nodes.find((n) => n.id === selectedNodeId);
+          if (!selNode) return null;
+          return (
+            <div className="h-9 px-3 bg-zinc-900/95 border-t border-zinc-800 flex items-center justify-between text-xs z-20">
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-[11px] text-amber-400 font-semibold">
+                  NODE INSPECTOR: {selNode.label} ({selNode.type})
+                </span>
+                <button
+                  onClick={() =>
+                    updateCompositorNode(selNode.id, { bypassed: !selNode.bypassed })
+                  }
+                  className={`px-2 py-0.5 rounded text-[11px] font-medium border ${
+                    selNode.bypassed
+                      ? 'bg-rose-500/20 border-rose-500/50 text-rose-300'
+                      : 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
+                  }`}
+                >
+                  {selNode.bypassed ? 'Bypassed (Click to Enable)' : 'Active in FBO Pipeline'}
+                </button>
+              </div>
+
+              <div className="flex items-center gap-3">
+                {selNode.type === 'ShaderFX' && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-zinc-400 text-[11px]">Shader Kernel:</span>
+                    <select
+                      value={selNode.shaderId || 'bloom'}
+                      onChange={(e) =>
+                        updateCompositorNode(selNode.id, {
+                          shaderId: e.target.value,
+                          label: `ShaderFX: ${e.target.value}`,
+                        })
+                      }
+                      className="bg-zinc-950 border border-zinc-800 rounded px-2 py-0.5 text-zinc-200 text-[11px]"
+                    >
+                      <option value="bloom">HDR Dual-Filter Bloom</option>
+                      <option value="anamorphicFlare">Anamorphic Streak Flare</option>
+                      <option value="chromaticAberration">Radial Chromatic Aberration</option>
+                      <option value="crtGlitch">CRT Trinitron & VHS Tracking</option>
+                      <option value="filmGrain">35mm Procedural Film Grain</option>
+                      <option value="splitTone">Teal & Orange Split-Tone</option>
+                      <option value="kaleidoscope">Kaleidoscope Mirror Matrix</option>
+                    </select>
+                  </div>
+                )}
+
+                <div className="flex items-center gap-1.5">
+                  <span className="text-zinc-400 text-[11px]">Node Mix / Intensity:</span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={2.5}
+                    step={0.05}
+                    value={Number(selNode.params.intensity ?? selNode.params.opacity ?? 1.0)}
+                    onChange={(e) => {
+                      const val = Number(e.target.value);
+                      updateCompositorNode(selNode.id, {
+                        params: { ...selNode.params, intensity: val, opacity: Math.min(1, val) },
+                      });
+                    }}
+                    className="w-24 accent-amber-500"
+                  />
+                  <span className="font-mono text-[11px] text-amber-400 w-9">
+                    {Number(selNode.params.intensity ?? selNode.params.opacity ?? 1.0).toFixed(2)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
       </div>
-    </div>
-  );
-}
+    );
+  }
 
 // ============================================================================
 // 2. LIVE GLSL SHADER IDE & GEMINI AI TEXT-TO-GLSL LAB
@@ -1278,10 +1358,23 @@ export function AIDirectorSuite() {
                 <option value="Hindi">Hindi (हिन्दी)</option>
               </select>
               <button
-                onClick={handleGenerateDubTrack}
+                onClick={async () => {
+                  await handleGenerateDubTrack();
+                  audioEngine.speakDubbedPreview(dubResult.translatedDialogue, dubLanguage);
+                }}
                 className="flex-1 py-1.5 bg-amber-500 hover:bg-amber-400 text-zinc-950 font-semibold rounded"
               >
-                Translate & Clone Dub Track to Timeline
+                Translate & Clone Dub Track
+              </button>
+              <button
+                onClick={() =>
+                  audioEngine.speakDubbedPreview(dubResult.translatedDialogue, dubLanguage)
+                }
+                className="px-2.5 py-1.5 bg-[#141824] hover:bg-zinc-700 border border-white/10 text-amber-300 font-medium rounded flex items-center gap-1"
+                title="Audition Translated Voiceover"
+              >
+                <Volume2 className="w-3.5 h-3.5" />
+                <span>Speak</span>
               </button>
             </div>
             <div className="p-2 rounded bg-[#06070b] border border-white/10 text-zinc-200">

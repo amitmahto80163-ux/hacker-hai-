@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useStudioStore, Primitive3DType } from '@/lib/store';
 import { PRODUCTION_SHADERS, ShaderCategory } from '@/lib/shaders';
 import { AIAudioRestorationEngine, GeneratedFoleySample } from '@/lib/AIAudioRestorationEngine';
+import { audioEngine } from '@/lib/audioEngine';
 import {
   Box,
   Sparkles,
@@ -109,6 +110,24 @@ export default function LeftAssetBrowser() {
     { id: 'harmony', label: 'Analog Synth Pads', level: 76, muted: false, solo: false, color: '#10b981' },
     { id: 'lead', label: 'Arp & Lead Theme', level: 84, muted: false, solo: false, color: '#a855f7' },
   ]);
+
+  // Sync 4-Stem Music Mixer and Dialogue Auto-Ducking to live Web Audio engine
+  useEffect(() => {
+    const anySolo = stems.some((s) => s.solo);
+    const getGain = (id: StemChannel['id']) => {
+      const ch = stems.find((s) => s.id === id);
+      if (!ch || ch.muted) return 0;
+      if (anySolo && !ch.solo) return 0;
+      return ch.level / 100;
+    };
+    audioEngine.setStemMix({
+      drums: getGain('drums'),
+      bass: getGain('bass'),
+      harmony: getGain('harmony'),
+      lead: getGain('lead'),
+      autoDuck: autoDuckDialogue,
+    });
+  }, [stems, autoDuckDialogue]);
 
   // 33-Joint Markerless 3D Motion Capture Skeleton Preview Loop
   useEffect(() => {

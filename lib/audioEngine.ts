@@ -33,6 +33,14 @@ export interface MasterBusConfig {
   eqBands: EQBandConfig[];
 }
 
+export interface StemMixLevels {
+  drums: number; // 0..1
+  bass: number; // 0..1
+  harmony: number; // 0..1
+  lead: number; // 0..1
+  autoDuck: boolean;
+}
+
 export interface BroadcastMeterTelemetry {
   leftPeakDb: number;
   rightPeakDb: number;
@@ -49,9 +57,9 @@ export interface BroadcastMeterTelemetry {
 }
 
 /**
- * Real-time Fairlight-style Web Audio API Mastering & Synthesis Engine
+ * Real-time Fairlight-style Web Audio API Mastering & 4-Stem Synthesis Engine
  * Manages live playback synthesis, 4-band Parametric EQ, DynamicsCompressorNode,
- * ConvolverNode studio reverb, 2048-point FFT analyzer, and OfflineAudioContext mixdown.
+ * ConvolverNode studio reverb, 2048-point FFT analyzer, and 4-Stem Dynamic Music Mixer.
  */
 class WebAudioMasteringEngine {
   private ctx: AudioContext | null = null;
@@ -65,8 +73,20 @@ class WebAudioMasteringEngine {
   private reverbSendGain: GainNode | null = null;
 
   private isPlaying = false;
+  private currentBpm = 124;
   private synthIntervalId: number | null = null;
   private stepCounter = 0;
+
+  private stemMix: StemMixLevels = {
+    drums: 0.92,
+    bass: 0.88,
+    harmony: 0.76,
+    lead: 0.84,
+    autoDuck: true,
+  };
+
+  private trackGainMultiplier = 1.0;
+  private trackPanOffset = 0.0;
 
   private fftBuffer = new Uint8Array(1024);
   private timeBufferL = new Float32Array(512);
@@ -81,7 +101,9 @@ class WebAudioMasteringEngine {
       return this.ctx;
     }
 
-    const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const AudioCtx =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     if (!AudioCtx) return null;
 
     const ctx = new AudioCtx();
@@ -177,6 +199,24 @@ class WebAudioMasteringEngine {
     return impulse;
   }
 
+  public setStemMix(mix: Partial<StemMixLevels>) {
+    this.stemMix = { ...this.stemMix, ...mix };
+  }
+
+  public syncChannelStrips(
+    strips: Record<string, ChannelStripConfig>,
+    tracksMutedMap?: Record<string, boolean>
+  ) {
+    const a1 = strips['track-a1'];
+    const isMuted = Boolean(a1?.mute || tracksMutedMap?.['track-a1']);
+    if (isMuted) {
+      this.trackGainMultiplier = 0;
+    } else if (a1) {
+      this.trackGainMultiplier = Math.pow(10, a1.inputGainDb / 20);
+      this.trackPanOffset = a1.pan;
+    }
+  }
+
   public syncMasterBus(config: MasterBusConfig) {
     if (!this.ctx) return;
     if (this.masterGain) {
@@ -212,25 +252,46 @@ class WebAudioMasteringEngine {
     });
   }
 
+  public speakDubbedPreview(text: string, langLabel: string) {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    try {
+      window.speechSynthesis.cancel();
+      const utter = new SpeechSynthesisUtterance(text);
+      const langMap: Record<string, string> = {
+        Japanese: 'ja-JP',
+        Spanish: 'es-ES',
+        French: 'fr-FR',
+        German: 'de-DE',
+        Hindi: 'hi-IN',
+      };
+      utter.lang = langMap[langLabel] || 'en-US';
+      utter.rate = 1.02;
+      window.speechSynthesis.speak(utter);
+    } catch {
+      // Ignore if speech synthesis blocked
+    }
+  }
+
   public setPlaybackState(playing: boolean, bpm = 124) {
-    if (playing === this.isPlaying) return;
+    if (playing === this.isPlaying && bpm === this.currentBpm) return;
     this.isPlaying = playing;
+    this.currentBpm = bpm;
+
+    if (this.synthIntervalId !== null) {
+      clearInterval(this.synthIntervalId);
+      this.synthIntervalId = null;
+    }
 
     if (playing) {
       const ctx = this.initContext();
       if (!ctx) return;
-      const stepMs = (60 / bpm / 2) * 1000; // 8th-note steps
-      this.triggerSynthStep(0);
+      const stepMs = (60 / Math.max(60, bpm) / 2) * 1000; // 8th-note steps
+      this.triggerSynthStep(this.stepCounter);
       this.synthIntervalId = window.setInterval(() => {
         if (!this.isPlaying) return;
         this.stepCounter++;
         this.triggerSynthStep(this.stepCounter);
       }, stepMs);
-    } else {
-      if (this.synthIntervalId !== null) {
-        clearInterval(this.synthIntervalId);
-        this.synthIntervalId = null;
-      }
     }
   }
 
@@ -238,54 +299,107 @@ class WebAudioMasteringEngine {
     const ctx = this.ctx;
     const entryNode = this.masterEqNodes[0];
     if (!ctx || !entryNode || ctx.state !== 'running') return;
+    if (this.trackGainMultiplier <= 0.001) return;
 
     const now = ctx.currentTime;
+    const duckFactor = this.stemMix.autoDuck ? 0.82 : 1.0;
+    const masterTrim = this.trackGainMultiplier * duckFactor;
 
-    // Kick drum on even steps (quarter notes)
-    if (step % 2 === 0) {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(140, now);
-      osc.frequency.exponentialRampToValueAtTime(42, now + 0.14);
+    // 1. DRUMS STEM (Kick on even steps, Crisp Hat on odd steps)
+    if (this.stemMix.drums > 0.01) {
+      if (step % 2 === 0) {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(145, now);
+        osc.frequency.exponentialRampToValueAtTime(42, now + 0.14);
 
-      gain.gain.setValueAtTime(0.55, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
+        gain.gain.setValueAtTime(0.58 * this.stemMix.drums * masterTrim, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
 
-      osc.connect(gain);
-      gain.connect(entryNode);
-      osc.start(now);
-      osc.stop(now + 0.25);
+        osc.connect(gain);
+        gain.connect(entryNode);
+        osc.start(now);
+        osc.stop(now + 0.25);
+      } else {
+        const hatOsc = ctx.createOscillator();
+        const hatFilter = ctx.createBiquadFilter();
+        const hatGain = ctx.createGain();
+        hatOsc.type = 'square';
+        hatOsc.frequency.setValueAtTime(6400, now);
+        hatFilter.type = 'highpass';
+        hatFilter.frequency.setValueAtTime(5000, now);
+        hatGain.gain.setValueAtTime(0.05 * this.stemMix.drums * masterTrim, now);
+        hatGain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+        hatOsc.connect(hatFilter);
+        hatFilter.connect(hatGain);
+        hatGain.connect(entryNode);
+        hatOsc.start(now);
+        hatOsc.stop(now + 0.07);
+      }
     }
 
-    // Synth Bass & Stereo Arp
+    // 2. SUB-BASS STEM
     const scale = [55.0, 65.41, 73.42, 82.41, 98.0, 110.0];
     const freq = scale[step % scale.length];
 
-    const bassOsc = ctx.createOscillator();
-    const bassFilter = ctx.createBiquadFilter();
-    const bassGain = ctx.createGain();
-    const panner = ctx.createStereoPanner();
+    if (this.stemMix.bass > 0.01) {
+      const bassOsc = ctx.createOscillator();
+      const bassFilter = ctx.createBiquadFilter();
+      const bassGain = ctx.createGain();
+      const panner = ctx.createStereoPanner();
 
-    bassOsc.type = 'sawtooth';
-    bassOsc.frequency.setValueAtTime(freq * (step % 4 === 0 ? 1 : 2), now);
+      bassOsc.type = 'sawtooth';
+      bassOsc.frequency.setValueAtTime(freq * (step % 4 === 0 ? 1 : 2), now);
 
-    bassFilter.type = 'lowpass';
-    bassFilter.frequency.setValueAtTime(950, now);
-    bassFilter.frequency.exponentialRampToValueAtTime(220, now + 0.18);
+      bassFilter.type = 'lowpass';
+      bassFilter.frequency.setValueAtTime(920, now);
+      bassFilter.frequency.exponentialRampToValueAtTime(210, now + 0.18);
 
-    bassGain.gain.setValueAtTime(0.18, now);
-    bassGain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+      bassGain.gain.setValueAtTime(0.2 * this.stemMix.bass * masterTrim, now);
+      bassGain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
 
-    panner.pan.setValueAtTime(Math.sin(step * 0.9) * 0.55, now);
+      panner.pan.setValueAtTime(
+        Math.max(-1, Math.min(1, this.trackPanOffset + Math.sin(step * 0.9) * 0.35)),
+        now
+      );
 
-    bassOsc.connect(bassFilter);
-    bassFilter.connect(bassGain);
-    bassGain.connect(panner);
-    panner.connect(entryNode);
+      bassOsc.connect(bassFilter);
+      bassFilter.connect(bassGain);
+      bassGain.connect(panner);
+      panner.connect(entryNode);
 
-    bassOsc.start(now);
-    bassOsc.stop(now + 0.21);
+      bassOsc.start(now);
+      bassOsc.stop(now + 0.21);
+    }
+
+    // 3. HARMONY / ANALOG SYNTH PADS STEM (Every 4 steps)
+    if (this.stemMix.harmony > 0.01 && step % 4 === 0) {
+      const padOsc = ctx.createOscillator();
+      const padGain = ctx.createGain();
+      padOsc.type = 'triangle';
+      padOsc.frequency.setValueAtTime(freq * 4, now);
+      padGain.gain.setValueAtTime(0.09 * this.stemMix.harmony * masterTrim, now);
+      padGain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+      padOsc.connect(padGain);
+      padGain.connect(entryNode);
+      padOsc.start(now);
+      padOsc.stop(now + 0.46);
+    }
+
+    // 4. LEAD ARP STEM
+    if (this.stemMix.lead > 0.01) {
+      const leadOsc = ctx.createOscillator();
+      const leadGain = ctx.createGain();
+      leadOsc.type = 'sine';
+      leadOsc.frequency.setValueAtTime(freq * (step % 2 === 0 ? 6 : 8), now);
+      leadGain.gain.setValueAtTime(0.07 * this.stemMix.lead * masterTrim, now);
+      leadGain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+      leadOsc.connect(leadGain);
+      leadGain.connect(entryNode);
+      leadOsc.start(now);
+      leadOsc.stop(now + 0.15);
+    }
   }
 
   /**
@@ -293,12 +407,17 @@ class WebAudioMasteringEngine {
    * L/R Peak & RMS dB, LUFS loudness, and Lissajous phase correlation.
    */
   public getTelemetry(playheadSeconds: number, isPlaying: boolean): BroadcastMeterTelemetry {
-    if (this.masterAnalyser && this.analyserL && this.analyserR && isPlaying && this.ctx?.state === 'running') {
+    if (
+      this.masterAnalyser &&
+      this.analyserL &&
+      this.analyserR &&
+      isPlaying &&
+      this.ctx?.state === 'running'
+    ) {
       this.masterAnalyser.getByteFrequencyData(this.fftBuffer);
       this.analyserL.getFloatTimeDomainData(this.timeBufferL);
       this.analyserR.getFloatTimeDomainData(this.timeBufferR);
 
-      // Compute low-frequency bass energy (bins 1..14)
       let bassSum = 0;
       for (let i = 1; i <= 14; i++) {
         bassSum += this.fftBuffer[i];
@@ -326,9 +445,11 @@ class WebAudioMasteringEngine {
       const rmsL = Math.sqrt(sumSqL / this.timeBufferL.length);
       const rmsR = Math.sqrt(sumSqR / this.timeBufferR.length);
       const denom = Math.sqrt(sumSqL * sumSqR);
-      const phaseCorrelation = denom > 0.00001 ? Math.max(-1, Math.min(1, dotLR / denom)) : 0.85;
+      const phaseCorrelation =
+        denom > 0.00001 ? Math.max(-1, Math.min(1, dotLR / denom)) : 0.85;
 
-      const toDb = (val: number) => Math.max(-60, Math.min(0, 20 * Math.log10(Math.max(val, 0.001))));
+      const toDb = (val: number) =>
+        Math.max(-60, Math.min(0, 20 * Math.log10(Math.max(val, 0.001))));
       const leftPeakDb = toDb(peakL);
       const rightPeakDb = toDb(peakR);
       const leftRmsDb = toDb(rmsL);
@@ -355,7 +476,10 @@ class WebAudioMasteringEngine {
     }
 
     // Deterministic scrubbing synthesis telemetry when scrubbing timeline or before AudioContext gesture
-    const beatPulse = Math.pow(Math.max(0, Math.sin(playheadSeconds * Math.PI * (124 / 30))), 4);
+    const beatPulse = Math.pow(
+      Math.max(0, Math.sin(playheadSeconds * Math.PI * (this.currentBpm / 30))),
+      4
+    );
     const audioBass = isPlaying ? beatPulse * 0.85 : beatPulse * 0.55;
 
     for (let i = 0; i < 256; i++) {
@@ -363,7 +487,10 @@ class WebAudioMasteringEngine {
       const harmonic = 0.5 + 0.5 * Math.sin(playheadSeconds * 12 + i * 0.25);
       this.fftBuffer[i] = Math.min(
         255,
-        Math.floor((freqDecay * 195 * (0.4 + audioBass * 0.8) + harmonic * 35) * (isPlaying ? 1.0 : 0.65))
+        Math.floor(
+          (freqDecay * 195 * (0.4 + audioBass * 0.8) + harmonic * 35) *
+            (isPlaying ? 1.0 : 0.65)
+        )
       );
     }
 
