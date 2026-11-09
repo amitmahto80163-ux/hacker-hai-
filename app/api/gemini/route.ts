@@ -15,7 +15,7 @@ function getGenAIClient(): GoogleGenAI {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { mode, prompt, currentCode, duration = 16 } = body;
+    const { mode, prompt, currentCode, duration = 16, targetLanguage = 'Spanish' } = body;
 
     const ai = getGenAIClient();
 
@@ -45,29 +45,20 @@ CRITICAL REQUIREMENTS:
           responseSchema: {
             type: Type.OBJECT,
             properties: {
-              shaderName: {
-                type: Type.STRING,
-                description: 'Concise studio name for the generated shader.',
-              },
+              shaderName: { type: Type.STRING },
               category: {
                 type: Type.STRING,
                 description: 'One of: Optical, Color, Stylize, Glitch, Procedural',
               },
-              description: {
-                type: Type.STRING,
-                description: '1-sentence technical description of the shader algorithm.',
-              },
-              fragmentSource: {
-                type: Type.STRING,
-                description: 'Complete valid #version 300 es GLSL fragment shader source string.',
-              },
+              description: { type: Type.STRING },
+              fragmentSource: { type: Type.STRING },
               uniforms: {
                 type: Type.ARRAY,
                 items: {
                   type: Type.OBJECT,
                   properties: {
                     name: { type: Type.STRING },
-                    type: { type: Type.STRING, description: 'float, vec2, or vec3' },
+                    type: { type: Type.STRING },
                     defaultValue: {
                       type: Type.ARRAY,
                       items: { type: Type.NUMBER },
@@ -149,8 +140,8 @@ Choose the closest base assembly primitive from: "chrono-drone", "cinema-camera-
             properties: {
               name: { type: Type.STRING },
               primitive: { type: Type.STRING },
-              color: { type: Type.STRING, description: 'Hex color e.g. #38bdf8' },
-              emissive: { type: Type.STRING, description: 'Hex color e.g. #06b6d4' },
+              color: { type: Type.STRING },
+              emissive: { type: Type.STRING },
               emissiveIntensity: { type: Type.NUMBER },
               roughness: { type: Type.NUMBER },
               metalness: { type: Type.NUMBER },
@@ -175,6 +166,155 @@ Choose the closest base assembly primitive from: "chrono-drone", "cinema-camera-
               'wave',
               'scale',
             ],
+          },
+        },
+      });
+
+      const parsed = JSON.parse((response.text ?? '{}').trim());
+      return NextResponse.json({ ok: true, data: parsed });
+    }
+
+    if (mode === 'storyboard') {
+      const response = await ai.models.generateContent({
+        model: 'gemini-3.8-flash',
+        contents: `Parse or write a 4-scene cinematic storyboard and shot breakdown for: "${prompt || 'A cyberpunk drone activates in an orbital hangar and launches into a neon storm.'}"`,
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              title: { type: Type.STRING },
+              genre: { type: Type.STRING },
+              scenes: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    sceneNumber: { type: Type.INTEGER },
+                    heading: { type: Type.STRING },
+                    dialogue: { type: Type.STRING },
+                    visualPrompt: { type: Type.STRING },
+                    cameraMotion: { type: Type.STRING },
+                    suggestedDurationSeconds: { type: Type.NUMBER },
+                  },
+                  required: [
+                    'sceneNumber',
+                    'heading',
+                    'dialogue',
+                    'visualPrompt',
+                    'cameraMotion',
+                    'suggestedDurationSeconds',
+                  ],
+                },
+              },
+            },
+            required: ['title', 'genre', 'scenes'],
+          },
+        },
+      });
+
+      const parsed = JSON.parse((response.text ?? '{}').trim());
+      return NextResponse.json({ ok: true, data: parsed });
+    }
+
+    if (mode === 'trailer') {
+      const response = await ai.models.generateContent({
+        model: 'gemini-3.8-flash',
+        contents: `Analyze the timeline sequence (${duration}s) and generate 4 high-impact trailer highlight cuts for: "${prompt || 'High-intensity sci-fi teaser with explosive sound design'}"`,
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              highlights: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    startTime: { type: Type.NUMBER },
+                    endTime: { type: Type.NUMBER },
+                    excitementScore: { type: Type.NUMBER },
+                    category: {
+                      type: Type.STRING,
+                      description: 'action, emotional, climax, or dialogue_hook',
+                    },
+                    description: { type: Type.STRING },
+                  },
+                  required: ['startTime', 'endTime', 'excitementScore', 'category', 'description'],
+                },
+              },
+            },
+            required: ['highlights'],
+          },
+        },
+      });
+
+      const parsed = JSON.parse((response.text ?? '{}').trim());
+      return NextResponse.json({ ok: true, data: parsed });
+    }
+
+    if (mode === 'dubbing') {
+      const response = await ai.models.generateContent({
+        model: 'gemini-3.8-flash',
+        contents: `Translate this studio voiceover dialogue into ${targetLanguage} with natural lip-sync timing and viseme cues: "${prompt || 'We are moments away from ignition. Lock all orbital telemetry sensors now.'}"`,
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              targetLanguage: { type: Type.STRING },
+              translatedDialogue: { type: Type.STRING },
+              speakerTone: { type: Type.STRING },
+              timeStretchFactor: { type: Type.NUMBER },
+              visemes: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    time: { type: Type.NUMBER },
+                    viseme: {
+                      type: Type.STRING,
+                      description: 'Bilabial, Labiodental, Dental, Open, or Rounded',
+                    },
+                    weight: { type: Type.NUMBER },
+                  },
+                  required: ['time', 'viseme', 'weight'],
+                },
+              },
+            },
+            required: ['targetLanguage', 'translatedDialogue', 'speakerTone', 'timeStretchFactor', 'visemes'],
+          },
+        },
+      });
+
+      const parsed = JSON.parse((response.text ?? '{}').trim());
+      return NextResponse.json({ ok: true, data: parsed });
+    }
+
+    if (mode === 'thumbnail') {
+      const response = await ai.models.generateContent({
+        model: 'gemini-3.8-flash',
+        contents: `Generate 3 high-CTR YouTube / cinema thumbnail headline hooks (2 to 4 punchy words each) for: "${prompt || 'Real-Time 3D & WebGL2 VFX Studio'}"`,
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              hooks: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    headline: { type: Type.STRING },
+                    subtext: { type: Type.STRING },
+                    accentHex: { type: Type.STRING },
+                    predictedCtrScore: { type: Type.NUMBER },
+                  },
+                  required: ['headline', 'subtext', 'accentHex', 'predictedCtrScore'],
+                },
+              },
+            },
+            required: ['hooks'],
           },
         },
       });

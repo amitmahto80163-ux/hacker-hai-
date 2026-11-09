@@ -21,6 +21,7 @@ export type WorkspaceMode =
   | 'edit'
   | '3d'
   | 'vfx'
+  | 'color'
   | 'shader-ide'
   | 'color-audio'
   | 'ai-director';
@@ -330,7 +331,8 @@ export interface AetherStudioState {
   redo: () => void;
 }
 
-const createDefaultEffectPass = (shaderId: string): ActiveShaderPass => {
+let passSeqCounter = 1;
+const createDefaultEffectPass = (shaderId: string, deterministicKey?: string): ActiveShaderPass => {
   const def = PRODUCTION_SHADERS.find((s) => s.id === shaderId) || PRODUCTION_SHADERS[0];
   const uniformValues: Record<string, number[]> = {};
   const audioLinkedUniforms: Record<string, boolean> = {};
@@ -339,7 +341,7 @@ const createDefaultEffectPass = (shaderId: string): ActiveShaderPass => {
     audioLinkedUniforms[u.name] = false;
   }
   return {
-    instanceId: `fx_${shaderId}_${Math.random().toString(36).slice(2, 7)}`,
+    instanceId: deterministicKey || `fx_${shaderId}_init_${passSeqCounter++}`,
     shaderId: def.id,
     name: def.name,
     enabled: true,
