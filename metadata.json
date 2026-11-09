@@ -1,0 +1,6 @@
+{
+  "name": "AetherStudio Pro",
+  "description": "Flagship web-based Non-Linear Video Editor (NLE), 3D Modeling Environment, and Node/Layer-based Visual Effects (VFX) Compositor.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
